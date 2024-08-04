@@ -23,6 +23,15 @@ class ColoresViewSet(viewsets.ModelViewSet):
     serializer_class = ColoresSerializer
 
 
+import base64
+from django.core.files.base import ContentFile
+from rest_framework import viewsets, permissions
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Publicaciones
+from .serializers import PublicacionesSerializer
+
+
 class PublicacionesViewSet(viewsets.ModelViewSet):
     queryset = Publicaciones.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -34,6 +43,23 @@ class PublicacionesViewSet(viewsets.ModelViewSet):
         if usuario_id is not None:
             queryset = queryset.filter(nombre_usuario_id=usuario_id)
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()  # Hacer una copia mutable de los datos
+
+        # Decodificar la imagen base64
+        if "imagen" in data:
+            format, imgstr = data["imagen"].split(";base64,")
+            ext = format.split("/")[-1]
+            data["imagen"] = ContentFile(base64.b64decode(imgstr), name=f"image.{ext}")
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
 
 class PersonalizacionesViewSet(viewsets.ModelViewSet):
